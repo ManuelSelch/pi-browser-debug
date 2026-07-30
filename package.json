@@ -1,42 +1,26 @@
 {
   "name": "pi-browser-debug",
-  "version": "1.0.0",
-  "description": "Pi extension for debugging active browser sessions via Chrome DevTools Protocol",
-  "keywords": [
-    "pi-package",
-    "pi-extension",
-    "pi",
-    "browser",
-    "debug",
-    "chrome-devtools-protocol",
-    "cdp",
-    "playwright"
-  ],
-  "main": "index.js",
+  "version": "2.0.0",
+  "description": "Reliable Playwright browser automation for Pi",
+  "keywords": ["pi-package", "pi-extension", "pi", "browser", "automation", "cdp", "playwright"],
+  "main": "extensions/index.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test test/*.test.ts",
+    "check": "npm run typecheck && npm test"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/nandafirmans/pi-browser-debug.git"
-  },
+  "repository": { "type": "git", "url": "git+https://github.com/nandafirmans/pi-browser-debug.git" },
   "homepage": "https://github.com/nandafirmans/pi-browser-debug#readme",
-  "bugs": {
-    "url": "https://github.com/nandafirmans/pi-browser-debug/issues"
-  },
+  "bugs": { "url": "https://github.com/nandafirmans/pi-browser-debug/issues" },
   "author": "nandafirmans",
   "license": "MIT",
-  "publishConfig": {
-    "access": "public"
-  },
-  "dependencies": {
-    "playwright": "^1.40.0"
-  },
+  "publishConfig": { "access": "public" },
+  "files": ["extensions", "README.md", "package.json"],
+  "dependencies": { "playwright": "^1.55.0" },
   "peerDependencies": {
-    "@mariozechner/pi-coding-agent": "*",
+    "@earendil-works/pi-coding-agent": ">=0.83.0 <1.0.0",
     "typebox": "*"
   },
-  "pi": {
-    "extensions": ["./extensions"]
-  }
+  "devDependencies": { "@types/node": "^22.15.3", "tsx": "^4.19.3", "typescript": "^5.8.3" },
+  "pi": { "extensions": ["./extensions/index.ts"] }
 }
