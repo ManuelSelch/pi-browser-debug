@@ -13,7 +13,7 @@ const tabName = Type.Optional(Type.String({ default: "main", description: "Named
 const timeoutParam = Type.Optional(Type.Number({ default: 30_000, description: "Timeout in milliseconds (1,000–300,000)" }));
 
 function screenshotPath(savePath?: string): string {
-  if (!savePath) return path.join(os.tmpdir(), `pi-browser-debug-screenshot-${randomUUID()}.png`);
+  if (!savePath) return path.join(os.tmpdir(), "pi-browser-debug", `screenshot-${randomUUID()}.png`);
   const resolved = path.resolve(process.cwd(), savePath);
   const relativeToCwd = path.relative(process.cwd(), resolved);
   const relativeToTemp = path.relative(os.tmpdir(), resolved);
