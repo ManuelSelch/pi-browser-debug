@@ -1,3 +1,7 @@
+import { mkdir } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { randomUUID } from "node:crypto";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { BrowserManager } from "./browser/manager.js";
@@ -7,6 +11,17 @@ import { formatError, requireNotAborted, textResult, timeout, waitForDuration } 
 const manager = new BrowserManager();
 const tabName = Type.Optional(Type.String({ default: "main", description: "Named browser tab (default: main)" }));
 const timeoutParam = Type.Optional(Type.Number({ default: 30_000, description: "Timeout in milliseconds (1,000–300,000)" }));
+
+function screenshotPath(savePath?: string): string {
+  if (!savePath) return path.join(os.tmpdir(), `pi-browser-debug-screenshot-${randomUUID()}.png`);
+  const resolved = path.resolve(process.cwd(), savePath);
+  const relativeToCwd = path.relative(process.cwd(), resolved);
+  const relativeToTemp = path.relative(os.tmpdir(), resolved);
+  const insideCwd = relativeToCwd === "" || (!relativeToCwd.startsWith(`..${path.sep}`) && relativeToCwd !== "..");
+  const insideTemp = relativeToTemp === "" || (!relativeToTemp.startsWith(`..${path.sep}`) && relativeToTemp !== "..");
+  if (!insideCwd && !insideTemp) throw new Error("Screenshot path must be inside the current working directory or the OS temporary directory.");
+  return resolved;
+}
 
 export default function browserAutomation(pi: ExtensionAPI): void {
   pi.registerTool({
@@ -53,6 +68,24 @@ export default function browserAutomation(pi: ExtensionAPI): void {
         else if (params.action === "upload") { if (!params.value) throw new Error("upload requires a local file path in value."); await tab.page.locator(selector!).setInputFiles(params.value, { timeout: ms }); }
         else { const buffer = selector ? await tab.page.locator(selector).screenshot({ timeout: ms }) : await tab.page.screenshot({ fullPage: params.fullPage ?? false, timeout: ms }); return { content: [{ type: "image", data: buffer.toString("base64"), mimeType: "image/png" }, { type: "text", text: "Screenshot captured." }], details: {} }; }
         requireNotAborted(signal); return textResult(`${params.action} completed on ${tab.page.url()}`);
+      } catch (error) { return formatError(error); }
+    },
+  });
+
+  pi.registerTool({
+    name: "browser_save_screenshot", label: "Save Browser Screenshot", description: "Capture the current browser page and save a PNG screenshot to disk. Returns the path for use with verification artifact tools.",
+    executionMode: "sequential",
+    parameters: Type.Object({ name: tabName, savePath: Type.Optional(Type.String({ description: "Output PNG path, relative to the current working directory or inside the OS temporary directory" })), fullPage: Type.Optional(Type.Boolean({ default: true })), timeout: timeoutParam }),
+    async execute(_id, params, signal) {
+      try {
+        requireNotAborted(signal);
+        const tab = manager.get(params.name ?? "main");
+        const outputPath = screenshotPath(params.savePath);
+        await mkdir(path.dirname(outputPath), { recursive: true });
+        const buffer = await tab.page.screenshot({ path: outputPath, fullPage: params.fullPage ?? true, timeout: timeout(params.timeout) });
+        requireNotAborted(signal);
+        const result = { path: outputPath, type: "screenshot", mimeType: "image/png", bytes: buffer.length, url: tab.page.url() };
+        return { content: [{ type: "image", data: buffer.toString("base64"), mimeType: "image/png" }, { type: "text", text: JSON.stringify(result, null, 2) }], details: result };
       } catch (error) { return formatError(error); }
     },
   });

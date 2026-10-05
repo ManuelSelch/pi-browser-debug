@@ -15,6 +15,7 @@ test("registers the browser automation toolset", () => {
     "browser_navigate",
     "browser_observe",
     "browser_act",
+    "browser_save_screenshot",
     "browser_run",
     "browser_events",
     "browser_tabs",

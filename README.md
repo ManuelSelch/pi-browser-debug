@@ -31,8 +31,9 @@ google-chrome-stable --remote-debugging-port=9222 --user-data-dir=/tmp/pi-browse
 2. `browser_navigate` opens a page.
 3. `browser_observe` returns interactive elements with refs such as `e1`.
 4. `browser_act` uses a ref for click, fill, press, hover, select, scrolling, waits, screenshots, or uploads.
-5. `browser_events` reports persistent console, failed-request, and HTTP-error events.
-6. `browser_close` shuts down managed browsers or disconnects CDP sessions.
+5. `browser_save_screenshot` captures the current page as a PNG and returns its saved path for verification artifacts.
+6. `browser_events` reports persistent console, failed-request, and HTTP-error events.
+7. `browser_close` shuts down managed browsers or disconnects CDP sessions.
 
 ## Tools
 
@@ -42,6 +43,7 @@ google-chrome-stable --remote-debugging-port=9222 --user-data-dir=/tmp/pi-browse
 | `browser_navigate` | Navigate a named tab |
 | `browser_observe` | Inspect interactive page elements and create refs |
 | `browser_act` | Perform actions by ref or CSS selector |
+| `browser_save_screenshot` | Save the current page as a PNG and return its path |
 | `browser_run` | Evaluate page JavaScript |
 | `browser_events` | Read persistent browser diagnostics |
 | `browser_tabs` | List named tabs |
