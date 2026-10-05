@@ -1,4 +1,4 @@
-import type { Browser, BrowserContext, Page } from "playwright";
+import type { Browser, BrowserContext, Page, Video } from "playwright";
 
 export type BrowserMode = "managed" | "cdp";
 export type WaitUntil = "load" | "domcontentloaded" | "networkidle" | "commit";
@@ -13,6 +13,42 @@ export interface BrowserEvent {
   readonly status?: number;
 }
 
+export interface VideoArtifact {
+  readonly name: string;
+  readonly pageId: string;
+  readonly url: string;
+  readonly path: string;
+  readonly type: "video";
+  readonly mimeType: "video/webm";
+  readonly bytes: number;
+}
+
+export interface BrowserCloseResult {
+  closed: number;
+  videos: VideoArtifact[];
+  errors: Array<{ name: string; message: string }>;
+}
+
+export interface RecordedPage {
+  readonly pageId: string;
+  readonly video: Video | null;
+  url: string;
+}
+
+export interface BrowserRecording {
+  readonly directory: string;
+  readonly pages: Map<Page, RecordedPage>;
+  stopTracking: () => void;
+}
+
+/** Shared by all active-page wrappers for one browser lifetime. */
+export interface BrowserLifecycle {
+  closing: boolean;
+  contextClosed: boolean;
+  browserClosed: boolean;
+  readonly recording?: BrowserRecording;
+}
+
 export interface BrowserTab {
   readonly name: string;
   readonly mode: BrowserMode;
@@ -20,6 +56,7 @@ export interface BrowserTab {
   readonly context: BrowserContext;
   readonly page: Page;
   readonly ownsBrowser: boolean;
+  readonly lifecycle: BrowserLifecycle;
   refs: Map<string, string>;
   events: BrowserEvent[];
   stopTracking: () => void;

@@ -1,9 +1,9 @@
 # Browser video recording plan
 
-- Status: proposed; planning only, no runtime implementation.
+- Status: implemented and verified with typechecking, 20 passing tests (including real Chromium recordings), and visual inspection of decoded action/popup frames.
 - Goal: support `browser_open({ name: "evidence", recordVideo: true })` and return usable video evidence when that browser is closed.
 
-## Current architecture
+## Architecture at planning time
 
 - `extensions/index.ts` registers sequential tools and closes the manager on `session_shutdown`.
 - `extensions/browser/manager.ts` launches a separate browser/context per managed name; CDP names attach to existing contexts.
@@ -11,7 +11,7 @@
 - `close()` currently returns a count, removes tracking, and calls browser disposal, which suppresses close errors. Video finalization needs an explicit context-close step and visible errors.
 - Existing tests cover registration and helpers, not a real browser lifecycle.
 
-## Proposed scope and API behavior
+## Scope and API behavior
 
 - Add optional boolean `recordVideo` to `browser_open`; new browsers default to recording off.
 - Support recording only in managed mode. Reject CDP plus `recordVideo: true` before connecting, with a clear explanation that recording requires a newly created managed context.

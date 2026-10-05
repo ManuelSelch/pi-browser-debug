@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Video evidence fixture</title></head>
+<body style="margin:0;background:#c62828;color:white;font:40px sans-serif;padding:60px">
+  <h1 id="status">BEFORE ACTION</h1>
+  <button id="complete" style="font-size:30px" onclick="document.body.style.background='#16803c';document.querySelector('#status').textContent='ACTION COMPLETE'">Complete action</button>
+  <p><a href="/popup" target="_blank" style="color:white">Open popup</a></p>
+  <script>
+    if (location.pathname === '/popup') {
+      document.body.style.background = '#1565c0';
+      document.querySelector('#status').textContent = 'POPUP EVIDENCE';
+    }
+  </script>
+</body>
+</html>

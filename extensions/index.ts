@@ -8,7 +8,6 @@ import { BrowserManager } from "./browser/manager.js";
 import { observe, selectorForAction } from "./browser/observe.js";
 import { formatError, requireNotAborted, textResult, timeout, waitForDuration } from "./browser/result.js";
 
-const manager = new BrowserManager();
 const tabName = Type.Optional(Type.String({ default: "main", description: "Named browser tab (default: main)" }));
 const timeoutParam = Type.Optional(Type.Number({ default: 30_000, description: "Timeout in milliseconds (1,000–300,000)" }));
 
@@ -23,13 +22,19 @@ function screenshotPath(savePath?: string): string {
   return resolved;
 }
 
-export default function browserAutomation(pi: ExtensionAPI): void {
+export default function browserAutomation(pi: ExtensionAPI, manager = new BrowserManager()): void {
   pi.registerTool({
-    name: "browser_open", label: "Open Browser", description: "Launch a managed Chromium tab or securely attach to a loopback CDP browser.",
+    name: "browser_open", label: "Open Browser", description: "Launch managed Chromium or attach to loopback CDP. Optionally record managed pages as WebM videos; browser_close finalizes and returns their paths.",
     executionMode: "sequential",
-    parameters: Type.Object({ name: tabName, mode: Type.Optional(Type.Union([Type.Literal("managed"), Type.Literal("cdp")], { default: "managed" })), cdpUrl: Type.Optional(Type.String({ description: "Loopback CDP URL, e.g. http://localhost:9222" })), target: Type.Optional(Type.String({ description: "URL substring when attaching to CDP" })), headless: Type.Optional(Type.Boolean({ default: true })) }),
+    parameters: Type.Object({ name: tabName, mode: Type.Optional(Type.Union([Type.Literal("managed"), Type.Literal("cdp")], { default: "managed" })), cdpUrl: Type.Optional(Type.String({ description: "Loopback CDP URL, e.g. http://localhost:9222" })), target: Type.Optional(Type.String({ description: "URL substring when attaching to CDP" })), headless: Type.Optional(Type.Boolean({ default: true })), recordVideo: Type.Optional(Type.Boolean({ description: "Record managed pages as silent WebM videos until browser_close. Defaults to false for new browsers; omitted on reopen preserves the existing setting." })) }),
     async execute(_id, params, signal) {
-      try { requireNotAborted(signal); const tab = await manager.open({ name: params.name ?? "main", mode: params.mode ?? "managed", cdpUrl: params.cdpUrl, target: params.target, headless: params.headless }); return textResult(`Opened ${tab.mode} tab ${JSON.stringify(tab.name)}\n${tab.page.url()}`); } catch (error) { return formatError(error); }
+      try {
+        requireNotAborted(signal);
+        const tab = await manager.open({ name: params.name ?? "main", mode: params.mode ?? "managed", cdpUrl: params.cdpUrl, target: params.target, headless: params.headless, recordVideo: params.recordVideo });
+        const recording = tab.lifecycle.recording;
+        const details = { name: tab.name, mode: tab.mode, url: tab.page.url(), recordVideo: Boolean(recording), ...(recording ? { recordingDirectory: recording.directory, recordingStatus: "active" } : {}) };
+        return textResult(`Opened ${tab.mode} tab ${JSON.stringify(tab.name)}\n${tab.page.url()}${recording ? `\nRecording active in ${recording.directory}; call browser_close to finalize videos.` : ""}`, details);
+      } catch (error) { return formatError(error); }
     },
   });
 
@@ -107,7 +112,7 @@ export default function browserAutomation(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "browser_tabs", label: "Browser Tabs", description: "List named automation tabs.", executionMode: "sequential",
     parameters: Type.Object({}),
-    async execute() { const tabs = await Promise.all(manager.list().map(async (tab) => ({ name: tab.name, mode: tab.mode, url: tab.page.url(), title: await tab.page.title() }))); return textResult(JSON.stringify(tabs, null, 2), { tabs }); },
+    async execute() { const tabs = await Promise.all(manager.list().map(async (tab) => ({ name: tab.name, mode: tab.mode, url: tab.page.url(), title: await tab.page.title(), recordVideo: Boolean(tab.lifecycle.recording), ...(tab.lifecycle.recording ? { recordingDirectory: tab.lifecycle.recording.directory, recordingStatus: "active" } : {}) }))); return textResult(JSON.stringify(tabs, null, 2), { tabs }); },
   });
 
   pi.registerTool({
@@ -117,10 +122,19 @@ export default function browserAutomation(pi: ExtensionAPI): void {
   });
 
   pi.registerTool({
-    name: "browser_close", label: "Close Browser", description: "Close one named tab or all automation tabs. CDP mode disconnects without closing the user browser.", executionMode: "sequential",
+    name: "browser_close", label: "Close Browser", description: "Close named or all automation tabs and return finalized WebM video paths. CDP disconnects without closing the user browser. Copy temporary videos to durable artifact storage.", executionMode: "sequential",
     parameters: Type.Object({ name: Type.Optional(Type.String()) }),
-    async execute(_id, params) { try { return textResult(`Closed ${await manager.close(params.name)} browser tab(s).`); } catch (error) { return formatError(error); } },
+    async execute(_id, params) {
+      try {
+        const result = await manager.close(params.name);
+        const summary = `Closed ${result.closed} browser tab(s).`;
+        return { ...textResult(result.videos.length || result.errors.length ? `${summary}\n${JSON.stringify(result, null, 2)}` : summary, result), ...(result.errors.length ? { isError: true } : {}) };
+      } catch (error) { return formatError(error); }
+    },
   });
 
-  pi.on("session_shutdown", async () => { await manager.close(); });
+  pi.on("session_shutdown", async () => {
+    const result = await manager.close();
+    if (result.errors.length) throw new Error(result.errors.map((error) => `${error.name}: ${error.message}`).join("\n"));
+  });
 }
